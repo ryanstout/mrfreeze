@@ -1,0 +1,57 @@
+{
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "editor.formatOnSave": true,
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": true,
+    "source.organizeImports": true
+  },
+  "[prisma]": {
+    "editor.defaultFormatter": "Prisma.prisma"
+  },
+  "cSpell.ignorePaths": [
+    "package.json",
+    "package-lock.json",
+    "node_modules",
+    "vscode-extension",
+    ".git/objects",
+    ".vscode",
+    ".vscode-insiders",
+    ".depcheckrc"
+  ],
+  // https://github.com/streetsidesoftware/vscode-spell-checker/issues/225
+  "cSpell.ignoreRegExpList": ["/from\\s+(['\"]).*\\1/"],
+  "cSpell.words": [
+    "AIRBYTE",
+    "typecheck",
+    "vitest",
+    "depcheck",
+    "knolbe",
+    "backoff",
+    "faiss",
+    "dtype",
+    "openai",
+    "davinci",
+    "chatgpt",
+    "retryable",
+    "openapi"
+  ],
+  "[python]": {
+    // https://discuss.python.org/t/autopep8-isort-how-do-i-sort-using-autoformatting-absolute-imports-for-user-defined-modules-in-vs-code/20973
+    "editor.defaultFormatter": "ms-python.black-formatter"
+    // "editor.codeActionsOnSave": {
+    //   "source.unusedImports": true
+    // }
+  },
+  "[toml]": {
+    "editor.defaultFormatter": "tamasfe.even-better-toml"
+  },
+  "python.linting.lintOnSave": true,
+  "python.linting.pylintEnabled": true,
+  "python.formatting.provider": "none",
+  "python.analysis.typeCheckingMode": "basic",
+  // "python.envFile": "${workspaceFolder}/.env",
+  "editor.rulers": [120],
+  "files.exclude": {
+    "**/__pycache__": true
+  }
+}

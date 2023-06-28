@@ -1,0 +1,21 @@
+[tool.poetry]
+name = "mrfreeze"
+version = "0.1.0"
+description = ""
+authors = ["Ryan Stout <ryanstout@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+langchain = "^0.0.218"
+ruamel-yaml = "^0.17.32"
+prompt-toolkit = "^3.0.38"
+questionary = "^1.10.0"
+black = "^23.3.0"
+python-decouple = "^3.8"
+rocketreach = "^2.1.5"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
