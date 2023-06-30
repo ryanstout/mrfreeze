@@ -25,6 +25,8 @@ If you need to update the rocketreach spec to 3.0, do so at https://converter.sw
 
 `openapi-generator generate -i src/rocketreach/rocketreach_openapi_spec_v3.json -g python -o src/rocketreach/api --skip-validate-spec`
 
+`openapi-python-generator src/rocketreach/rocketreach_openapi_spec_v3.json src/rocketreach/api2`
+
 Then update any references in src/rocketreach/api that mention typing-extensions to be version 4.7.0 (locked too tightly)
 
 # Example searches
@@ -32,3 +34,8 @@ Then update any references in src/rocketreach/api that mention typing-extensions
 Find all people working in the partnership org in all companies between 100 and 1000 employees
 
 Find technology accounting firms
+
+curl --request 'POST' --location 'https://api.rocketreach.co/api/v2/searchCompany'\
+--header 'Api-Key: 101c944kd612666dc0c96f658f380d89f62efa69'\
+ --header 'Content-Type: application/json'\
+ --data '{"query":{"keyword":["Healthcare"]}}'
