@@ -25,6 +25,8 @@ If you need to update the rocketreach spec to 3.0, do so at https://converter.sw
 
 `openapi-generator generate -i src/rocketreach/rocketreach_openapi_spec_v3.json -g python -o src/rocketreach/api --skip-validate-spec`
 
+Then update any references in src/rocketreach/api that mention typing-extensions to be version 4.7.0 (locked too tightly)
+
 # Example searches
 
 Find all people working in the partnership org in all companies between 100 and 1000 employees

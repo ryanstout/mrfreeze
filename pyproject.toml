@@ -5,6 +5,10 @@ description = ""
 authors = ["Ryan Stout <ryanstout@gmail.com>"]
 readme = "README.md"
 
+[virtualenvs]
+prefer-active-python = true
+in-project = true
+
 [tool.poetry.dependencies]
 python = "^3.11"
 langchain = "^0.0.218"
@@ -13,8 +17,12 @@ prompt-toolkit = "^3.0.38"
 questionary = "^1.10.0"
 black = "^23.3.0"
 python-decouple = "^3.8"
-rocketreach = "^2.1.5"
-openapi-client = {path = "src/rocketreach/api"}
+openapi-client = { path = "src/rocketreach/api" }
+apify-client = "^1.2.2"
+poetry = "^1.5.1"
+chromadb = "^0.3.26"
+openai = "^0.27.8"
+tiktoken = "^0.4.0"
 
 
 [build-system]
