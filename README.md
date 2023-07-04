@@ -35,7 +35,12 @@ Find all people working in the partnership org in all companies between 100 and 
 
 Find technology accounting firms
 
-curl --request 'POST' --location 'https://api.rocketreach.co/api/v2/searchCompany'\
---header 'Api-Key: 101c944kd612666dc0c96f658f380d89f62efa69'\
- --header 'Content-Type: application/json'\
- --data '{"query":{"keyword":["Healthcare"]}}'
+# Generate prisma
+
+```
+PRISMA_PY_DEBUG_GENERATOR=1 npx prisma generate
+```
+
+```
+python -m bin.fetch_companies_and_people "cljon3f5k0000bv6hdu9vhfq8" "healthcare" "purchasing software"
+```

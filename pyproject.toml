@@ -11,7 +11,7 @@ in-project = true
 
 [tool.poetry.dependencies]
 python = "^3.11"
-langchain = "^0.0.218"
+langchain = "^0.0.220"
 ruamel-yaml = "^0.17.32"
 prompt-toolkit = "^3.0.38"
 questionary = "^1.10.0"
@@ -22,6 +22,8 @@ poetry = "^1.5.1"
 chromadb = "^0.3.26"
 openai = "^0.27.8"
 tiktoken = "^0.4.0"
+llama-cpp-python = "^0.1.67"
+prisma = "^0.9.1"
 
 
 [build-system]

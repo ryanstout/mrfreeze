@@ -5,6 +5,20 @@
     "source.fixAll.eslint": true,
     "source.organizeImports": true
   },
+  "prettier": {
+    "semi": false,
+    "importOrderSeparation": true,
+    "importOrderSortSpecifiers": true,
+    "importOrderGroupNamespaceSpecifiers": true,
+    "importOrder": [
+      "^[:alpha].*$",
+      "^@remix(.*)$",
+      "^(@mantine|@emotion|@nivo)(.*)$",
+      "^@prisma(.*)$",
+      "^~/",
+      "./"
+    ]
+  },
   "[prisma]": {
     "editor.defaultFormatter": "Prisma.prisma"
   },
@@ -37,7 +51,7 @@
   ],
   "[python]": {
     // https://discuss.python.org/t/autopep8-isort-how-do-i-sort-using-autoformatting-absolute-imports-for-user-defined-modules-in-vs-code/20973
-    "editor.defaultFormatter": "ms-python.black-formatter"
+    "editor.defaultFormatter": "ms-python.python"
     // "editor.codeActionsOnSave": {
     //   "source.unusedImports": true
     // }
@@ -47,7 +61,7 @@
   },
   "python.linting.lintOnSave": true,
   "python.linting.pylintEnabled": true,
-  "python.formatting.provider": "none",
+  "python.formatting.provider": "black",
   "python.analysis.typeCheckingMode": "basic",
   // "python.envFile": "${workspaceFolder}/.env",
   "editor.rulers": [120],

@@ -1,0 +1,119 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+generator pyclient {
+  provider             = "prisma-client-py"
+  interface            = "sync"
+  recursive_type_depth = 5
+}
+
+model User {
+  id    String @id @default(cuid())
+  email String @unique
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  password Password?
+}
+
+model Password {
+  hash String
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  userId String @unique
+}
+
+model Session {
+  id                     String @id @default(cuid())
+  name                   String
+  company_search_keyword String
+
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+  companies SessionCompany[]
+  people    SessionPerson[]
+}
+
+// through association between session and company
+model SessionCompany {
+  id String @id @default(cuid())
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  session   Session @relation(fields: [sessionId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  sessionId String
+
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  companyId String
+
+  @@unique([sessionId, companyId])
+}
+
+model Company {
+  id            String @id @default(cuid())
+  rocketreachId Int    @unique
+  name          String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  data     Json
+  sessions SessionCompany[]
+  people   CompanyPerson[]
+}
+
+// through assocation between session and person
+model SessionPerson {
+  id String @id @default(cuid())
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  session   Session @relation(fields: [sessionId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  sessionId String
+
+  person   Person @relation(fields: [personId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  personId String
+
+  @@unique([sessionId, personId])
+}
+
+// through association between company and person
+model CompanyPerson {
+  id String @id @default(cuid())
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  companyId String
+
+  person   Person @relation(fields: [personId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  personId String
+
+  // Scope the through association to a session 
+  sessionId String
+
+  @@unique([companyId, sessionId, personId])
+}
+
+model Person {
+  id            String @id @default(cuid())
+  rocketreachId Int    @unique
+  name          String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  data      Json
+  sessions  SessionPerson[]
+  companies CompanyPerson[]
+}
