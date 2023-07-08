@@ -147,8 +147,11 @@ for company in compaines["companies"]:
         if company_people_count > max_people_per_company:
             break
 
+        # There's no way to sort by a specific field, so we have to query by normalized title one at a time.
+        # TODO: we could probably query and split out after, but we don't have any way to know if we got the
+        # normalized_titles we wanted first if we hit the limit.
         people = search_people(
-            {"company_id": [company["id"]], "normalized_title": job_titles}
+            {"company_id": [company["id"]], "normalized_title": [job_title]}
         )
 
         if "profiles" not in people:

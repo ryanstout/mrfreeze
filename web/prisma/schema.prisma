@@ -102,6 +102,8 @@ model CompanyPerson {
   // Scope the through association to a session 
   sessionId String
 
+  selected Boolean @default(false)
+
   @@unique([companyId, sessionId, personId])
 }
 
