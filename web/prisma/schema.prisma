@@ -31,14 +31,17 @@ model Password {
 }
 
 model Session {
-  id                     String @id @default(cuid())
+  id                     String  @id @default(cuid())
   name                   String
   company_search_keyword String
+  person_search_keyword  String?
 
   createdAt DateTime         @default(now())
   updatedAt DateTime         @updatedAt
   companies SessionCompany[]
   people    SessionPerson[]
+
+  email String @default("")
 }
 
 // through association between session and company
@@ -103,6 +106,7 @@ model CompanyPerson {
   sessionId String
 
   selected Boolean @default(false)
+  email    String?
 
   @@unique([companyId, sessionId, personId])
 }

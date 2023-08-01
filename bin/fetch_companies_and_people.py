@@ -106,7 +106,7 @@ max_searches = 1
 max_companies = 2
 max_people_per_company = 2
 
-job_titles = rocketreach_title_search_rank(job_description, limit=50)
+job_titles = rocketreach_title_search_rank(job_description)  # , limit=50)
 print("Finding people with the following job titles: ", job_titles)
 
 compaines = search_companies({"keyword": [keyword]})

@@ -51,7 +51,7 @@
   ],
   "[python]": {
     // https://discuss.python.org/t/autopep8-isort-how-do-i-sort-using-autoformatting-absolute-imports-for-user-defined-modules-in-vs-code/20973
-    "editor.defaultFormatter": "ms-python.python"
+    "editor.defaultFormatter": "ms-python.black-formatter"
     // "editor.codeActionsOnSave": {
     //   "source.unusedImports": true
     // }
@@ -61,7 +61,7 @@
   },
   "python.linting.lintOnSave": true,
   "python.linting.pylintEnabled": true,
-  "python.formatting.provider": "black",
+  "python.formatting.provider": "none",
   "python.analysis.typeCheckingMode": "basic",
   // "python.envFile": "${workspaceFolder}/.env",
   "editor.rulers": [120],

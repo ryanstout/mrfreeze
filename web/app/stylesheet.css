@@ -1,0 +1,8 @@
+/* weird you can't just set this on mantine Textarea's directly */
+.mantine-Input-wrapper.mantine-Textarea-wrapper {
+    height: 100%;
+}
+
+.emailEditor textarea {
+    height: 100%;
+}

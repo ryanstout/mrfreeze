@@ -3,31 +3,30 @@ comapnies that fit a query ("find startup's that have less than 50 people in the
 health care space"), then find people in those companies based on another query.
 (Find people with a title similar to "...")
 
-# Setup
+# Setup/Requirements
 
+A recent version of Postgres running on localhost
+
+```
 asdf python install 3.11.1
 asdf local 3.11.1
 pip install poetry
 poetry install
-brew install openapi-generator
-npm install -g swagger-converter
+```
+
+# Details
+
+MrFreeze consists of python code to manages the AI company search, and a Remix app in the `web` folder for the user interface
 
 # Run
 
+The remix app shells out to python so you need to run `poetry shell` before running `npm run dev`
+
 ```
 poetry shell
-python -m mrfreeze
+cd web
+npm run dev
 ```
-
-# RocketReach API
-
-If you need to update the rocketreach spec to 3.0, do so at https://converter.swagger.io/#/Converter/convertByContent
-
-`openapi-generator generate -i src/rocketreach/rocketreach_openapi_spec_v3.json -g python -o src/rocketreach/api --skip-validate-spec`
-
-`openapi-python-generator src/rocketreach/rocketreach_openapi_spec_v3.json src/rocketreach/api2`
-
-Then update any references in src/rocketreach/api that mention typing-extensions to be version 4.7.0 (locked too tightly)
 
 # Example searches
 

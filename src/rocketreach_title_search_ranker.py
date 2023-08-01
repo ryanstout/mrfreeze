@@ -28,12 +28,22 @@ from langchain.text_splitter import CharacterTextSplitter
 
 from src.batteries import memoize_to_disk, shuffle
 
-langchain.debug = False
+langchain.debug = True
 
 
-llm = OpenAI(temperature=0.0)
-# llm = ChatOpenAI(temperature=0.0)  # , model="gpt-3.5-turbo")
-# llm = ChatOpenAI(temperature=0.0, model="gpt-3.5-turbo-16k")
+# llm = OpenAI(temperature=0.0)
+# llm = ChatOpenAI(temperature=0.0, model="gpt-3.5-turbo")
+# token_window_size = 4096
+
+
+llm = ChatOpenAI(
+    temperature=0.0,
+    model="gpt-3.5-turbo-16k",
+    max_retries=0,
+    verbose=True,
+)
+token_window_size = 16_000
+# llm = ChatOpenAI(temperature=0.0, model="gpt-4")
 
 # n_gpu_layers = 40  # Change this value based on your model and your GPU VRAM pool.
 # n_batch = 512  # Should be between 1 and n_ctx, consider the amount of VRAM in your GPU.
@@ -60,7 +70,7 @@ print("Model loaded")
 
 @memoize_to_disk
 def rocketreach_title_search_rank(
-    job_query: str, limit: int = 100, map_limit: int = 50
+    job_query: str, limit: int = 100, map_limit: int = 100
 ) -> list[str]:
     with get_openai_callback() as cb:
         # Pull in the list of normalized titles from the provided url
@@ -68,34 +78,47 @@ def rocketreach_title_search_rank(
         titles = requests.get(url).text
 
         # Split the titles on \n, shuffle, then truncate to the first 1000, then join back to a string
-        titles = "\n".join(random.sample(titles.split("\n"), 1000))
+        # titles = "\n".join(random.sample(titles.split("\n"), 1000))
 
         # Shuffle titles so we don't get too many relates jobs in a chunk
         titles = "\n".join(shuffle(titles.split("\n")))
 
         # print(titles)
 
-        map_prompt = PromptTemplate(
-            input_variables=["job_query", "titles", "map_limit"],
-            template="Rank the following job titles based on how likely the job described would be to be in charge of {job_query}. Return the top {map_limit} results separated by new lines, do not include numbers.\n\n```{titles}```",
-        )
-
-        reduce_prompt = PromptTemplate(
-            input_variables=["job_query", "titles", "limit"],
-            template="Rank the following job titles based on how likely the job described would be to be in charge of {job_query}. Return the top {limit} results separated by new lines, do not include numbers.\n\n```{titles}```",
-        )
-
-        # map_prompt = HumanMessagePromptTemplate.from_template(
-        #     "Rank the following job titles based on how likely the job described would be to be in charge of {job_query}. Return the top {map_limit} results separated by new lines, do not include numbers.\n\n```{titles}```"
-        # )
-        # reduce_prompt = HumanMessagePromptTemplate.from_template(
-        #     "Rank the following job titles based on how likely the job described would be to be in charge of {job_query}. Return the top {limit} results separated by new lines, do not include numbers.\n\n```{titles}```"
+        # map_prompt = PromptTemplate(
+        #     input_variables=["job_query", "titles", "map_limit"],
+        #     template="Rank the following job titles based on how likely the job described would be to be in charge of {job_query}. Return the top {map_limit} results separated by new lines, do not include numbers.\n\n```{titles}```",
         # )
 
-        # map_prompt = ChatPromptTemplate.from_messages([map_prompt])
-        # reduce_prompt = ChatPromptTemplate.from_messages([reduce_prompt])
+        # reduce_prompt = PromptTemplate(
+        #     input_variables=["job_query", "titles", "limit"],
+        #     template="Rank the following job titles based on how likely the job described would be to be in charge of {job_query}. Return the top {limit} results separated by new lines, do not include numbers.\n\n```{titles}```",
+        # )
+
+        map_prompt = HumanMessagePromptTemplate.from_template(
+            "Rank the following job titles based on how likely the job described would be to be in charge of {job_query}. Return the top {map_limit} results separated by new lines, do not include numbers.\n\n```{titles}```"
+        )
+        reduce_prompt = HumanMessagePromptTemplate.from_template(
+            "Rank the following job titles based on how likely the job described would be to be in charge of {job_query}. Return the top {limit} results separated by new lines, do not include numbers.\n\n```{titles}```"
+        )
+
+        map_prompt = ChatPromptTemplate.from_messages([map_prompt])
+        reduce_prompt = ChatPromptTemplate.from_messages([reduce_prompt])
+
+        print("REDUCE: ", reduce_prompt)
+        print("MAP: ", map_prompt)
 
         map_llm_chain = LLMChain(llm=llm, prompt=map_prompt)
+        # result = map_llm_chain.run(
+        #     job_query=job_query, titles=titles, map_limit=map_limit
+        # )
+
+        # print("RESULT", result)
+        # # drop into repl
+        # import code
+
+        # code.interact(local=locals())
+
         reduce_llm_chain = LLMChain(llm=llm, prompt=reduce_prompt)
 
         generative_result_reduce_chain = StuffDocumentsChain(
@@ -111,9 +134,15 @@ def rocketreach_title_search_rank(
         )
 
         len_func = llm.get_num_tokens
+
+        # def num_tokens(x):
+        #     token_count = llm.get_num_tokens(x)
+        #     print("TOKEN COUNT: ", token_count)
+        #     return token_count
+
         text_splitter = CharacterTextSplitter(
             separator="\n",
-            chunk_size=3000,
+            chunk_size=(token_window_size // 2) - 100,
             chunk_overlap=0,
             length_function=len_func,
             add_start_index=False,
