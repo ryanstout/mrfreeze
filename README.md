@@ -43,3 +43,6 @@ PRISMA_PY_DEBUG_GENERATOR=1 npx prisma generate
 ```
 python -m bin.fetch_companies_and_people "cljon3f5k0000bv6hdu9vhfq8" "healthcare" "purchasing software"
 ```
+
+mkdir llama2
+cd llama2

@@ -11,7 +11,7 @@ in-project = true
 
 [tool.poetry.dependencies]
 python = "^3.11"
-langchain = "^0.0.248"
+langchain = "^0.0.252"
 ruamel-yaml = "^0.17.32"
 prompt-toolkit = "^3.0.38"
 questionary = "^1.10.0"

@@ -6,6 +6,8 @@ import {
     Stack,
     Textarea,
 } from "@mantine/core"
+import type { CompanyPerson, Person, Session } from "@prisma/client"
+import type { LoaderArgs } from "@remix-run/node"
 import { useLoaderData, useNavigate, useParams } from "@remix-run/react"
 import { DataTable } from "mantine-datatable"
 import { useEffect, useRef, useState } from "react"
@@ -13,7 +15,7 @@ import { z } from "zod"
 import { zx } from "zodix"
 import { prisma } from "~/db.server"
 
-class Person {
+class FullPerson {
     constructor(
         public id: string,
         public name: string,
@@ -97,9 +99,9 @@ export async function loader({ params }: LoaderArgs) {
 }
 
 function savePeople(
-    session,
-    peopleRecords: Person[],
-    selectedPeople: Person[]
+    session: Session,
+    peopleRecords: FullPerson[],
+    selectedPeople: FullPerson[]
 ) {
     // write in the selected state to peopleRecords by looking if it is included in selectedPeople
     const updatedPeopleRecords = peopleRecords.map((person) => {
@@ -133,8 +135,8 @@ export default function SessionIndex() {
     const { session, company, people, totalPeople } =
         useLoaderData<typeof loader>()
 
-    const [selectedPeople, setSelectedPeople] = useState<Person[]>([])
-    const [allPeople, setAllPeople] = useState<Person[]>([])
+    const [selectedPeople, setSelectedPeople] = useState<FullPerson[]>([])
+    const [allPeople, setAllPeople] = useState<FullPerson[]>([])
     const [sessionEmail, setSessionEmail] = useState(session.email)
 
     const params = useParams()
@@ -158,8 +160,8 @@ export default function SessionIndex() {
         companyInfo = <div>Company not found</div>
     }
 
-    function transformPeople(people: Person[]) {
-        let peopleRecords: Person[]
+    function transformPeople(people: (CompanyPerson & { person: Person })[]) {
+        let peopleRecords: FullPerson[]
         if (people) {
             peopleRecords = people.map((companyPerson) => {
                 const data = companyPerson.person.data
@@ -169,7 +171,7 @@ export default function SessionIndex() {
                     )
                 }
 
-                return new Person(
+                return new FullPerson(
                     companyPerson.id,
                     companyPerson.person.name,
                     companyPerson.selected,
@@ -219,8 +221,8 @@ export default function SessionIndex() {
     function updateIndividualRecord(
         e: React.ChangeEvent<HTMLInputElement>,
         recordIndex: number,
-        allPeople: Person[],
-        setAllPeople: React.Dispatch<React.SetStateAction<Person[]>>
+        allPeople: FullPerson[],
+        setAllPeople: React.Dispatch<React.SetStateAction<FullPerson[]>>
     ) {
         const updatedEmail = e.currentTarget.value
 
@@ -235,8 +237,6 @@ export default function SessionIndex() {
             )
         )
     }
-
-    console.log("full re-render")
 
     return (
         <div>

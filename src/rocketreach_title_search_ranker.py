@@ -5,6 +5,7 @@ Example: <rank the following list of job titles based on how likely the job desc
 import os
 import pickle
 import random
+import time
 
 import langchain
 import requests
@@ -36,14 +37,19 @@ langchain.debug = True
 # token_window_size = 4096
 
 
+# llm = ChatOpenAI(
+#     temperature=0.0,
+#     model="gpt-3.5-turbo-16k",
+#     max_retries=0,
+#     verbose=True,
+# )
+# token_window_size = 16_000
+
+
 llm = ChatOpenAI(
-    temperature=0.0,
-    model="gpt-3.5-turbo-16k",
-    max_retries=0,
-    verbose=True,
+    temperature=0.0, model="gpt-4", verbose=True, max_retries=0, request_timeout=6000
 )
-token_window_size = 16_000
-# llm = ChatOpenAI(temperature=0.0, model="gpt-4")
+token_window_size = 8_000
 
 # n_gpu_layers = 40  # Change this value based on your model and your GPU VRAM pool.
 # n_batch = 512  # Should be between 1 and n_ctx, consider the amount of VRAM in your GPU.
@@ -95,8 +101,12 @@ def rocketreach_title_search_rank(
         #     template="Rank the following job titles based on how likely the job described would be to be in charge of {job_query}. Return the top {limit} results separated by new lines, do not include numbers.\n\n```{titles}```",
         # )
 
+        use_langchain = False
+        disable_parallel = True
+
         map_prompt = HumanMessagePromptTemplate.from_template(
-            "Rank the following job titles based on how likely the job described would be to be in charge of {job_query}. Return the top {map_limit} results separated by new lines, do not include numbers.\n\n```{titles}```"
+            # "Rank the following job titles based on how likely the job described would be to be in charge of {job_query}. Return the top {map_limit} results separated by new lines, do not include numbers.\n\n```{titles}```"
+            "Given the following list of job titles, assign each job title a score from 0 to 100 based on how likely the job would be to be in charge of {job_query}. Only return jobs with a score of over 95.\n\n```{titles}```"
         )
         reduce_prompt = HumanMessagePromptTemplate.from_template(
             "Rank the following job titles based on how likely the job described would be to be in charge of {job_query}. Return the top {limit} results separated by new lines, do not include numbers.\n\n```{titles}```"
@@ -105,10 +115,8 @@ def rocketreach_title_search_rank(
         map_prompt = ChatPromptTemplate.from_messages([map_prompt])
         reduce_prompt = ChatPromptTemplate.from_messages([reduce_prompt])
 
-        print("REDUCE: ", reduce_prompt)
-        print("MAP: ", map_prompt)
+        map_llm_chain = LLMChain(llm=llm, prompt=map_prompt, verbose=True)
 
-        map_llm_chain = LLMChain(llm=llm, prompt=map_prompt)
         # result = map_llm_chain.run(
         #     job_query=job_query, titles=titles, map_limit=map_limit
         # )
@@ -128,9 +136,11 @@ def rocketreach_title_search_rank(
 
         combine_documents = MapReduceDocumentsChain(
             llm_chain=map_llm_chain,
-            combine_document_chain=generative_result_reduce_chain,
+            # combine_document_chain=generative_result_reduce_chain,
+            reduce_documents_chain=generative_result_reduce_chain,
             document_variable_name="titles",
             return_intermediate_steps=False,
+            verbose=True,
         )
 
         len_func = llm.get_num_tokens
@@ -142,7 +152,7 @@ def rocketreach_title_search_rank(
 
         text_splitter = CharacterTextSplitter(
             separator="\n",
-            chunk_size=(token_window_size // 2) - 100,
+            chunk_size=(token_window_size // 2) - 1000,
             chunk_overlap=0,
             length_function=len_func,
             add_start_index=False,
@@ -150,12 +160,95 @@ def rocketreach_title_search_rank(
 
         title_documents = text_splitter.create_documents(texts=[titles])
 
-        results = combine_documents.run(
-            input_documents=title_documents,
-            job_query=job_query,
-            map_limit=map_limit,
-            limit=limit,
-        )
+        if not use_langchain or disable_parallel:
+            import openai
+
+            openai.api_key = os.getenv("OPENAI_API_KEY")
+
+            results = []
+            for title_document in title_documents:
+                prompt = map_prompt.format(
+                    job_query=job_query,
+                    titles=title_document.page_content,
+                    # map_limit=map_limit,
+                )
+
+                print("Run prompt")
+                t1 = time.time()
+                map_results = openai.ChatCompletion.create(
+                    model="gpt-4", messages=[{"role": "user", "content": prompt}]
+                )
+                t2 = time.time()
+
+                result = map_results.choices[0].message.content
+
+                # Strip off anything after a colon or a " - " on each line
+                result = "\n".join(
+                    [
+                        line.split(":")[0].split(" - ")[0]
+                        for line in result.split("\n")
+                        if line.strip()
+                    ]
+                )
+
+                # Remove any tripple backticks
+                result = result.replace("```", "")
+
+                # remove blank lines
+                result = "\n".join(
+                    [line for line in result.split("\n") if line.strip()]
+                )
+
+                print("RESULT IN: ", t2 - t1, len(result.split("\n")))
+                results.append(result)
+
+                # print("NOW WITH LANGCHAIN")
+                # t1 = time.time()
+                # # Run document through the map chain
+                # map_results = map_llm_chain.run(
+                #     job_query=job_query,
+                #     titles=title_document.page_content,
+                #     map_limit=map_limit,
+                # )
+                # t2 = time.time()
+                # print("LANGCHAIN RAN IN ", t2 - t1)
+
+            # results = reduce_llm_chain.run(
+            #     job_query=job_query, titles="\n".join(results), limit=limit
+            # )
+
+            print(f"----------------\n{results}\n\n")
+            prompt = reduce_prompt.format(
+                job_query=job_query, titles="\n".join(results), limit=limit
+            )
+
+            print(
+                "Final Prompt",
+                prompt,
+                "\n\nPrompt Length: ",
+                len(prompt),
+                "Prompt Lines: ",
+                len(prompt.split("\n")),
+            )
+            results = openai.ChatCompletion.create(
+                model="gpt-4", messages=[{"role": "user", "content": prompt}]
+            )
+            results = results.choices[0].message.content
+            print("FINAL RESULTS: ", results)
+            import code
+
+            code.interact(local=locals())
+
+        # results = combine_documents.run(
+        #     input_documents=title_documents,
+        #     job_query=job_query,
+        #     map_limit=map_limit,
+        #     limit=limit,
+        # )
+
+        # import code
+
+        # code.interact(local=locals())
 
         # split results on newline and remove any empty string values
         results = [x for x in results.split("\n") if x != ""]
