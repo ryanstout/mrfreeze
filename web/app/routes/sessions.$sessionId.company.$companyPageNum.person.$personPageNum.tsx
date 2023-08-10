@@ -1,12 +1,13 @@
 import {
     Button,
+    Grid,
     Group,
     Pagination,
     Space,
     Stack,
     Textarea,
 } from "@mantine/core"
-import type { CompanyPerson, Person, Session } from "@prisma/client"
+import type { Session } from "@prisma/client"
 import type { LoaderArgs } from "@remix-run/node"
 import { useLoaderData, useNavigate, useParams } from "@remix-run/react"
 import { DataTable } from "mantine-datatable"
@@ -14,66 +15,50 @@ import { useEffect, useRef, useState } from "react"
 import { z } from "zod"
 import { zx } from "zodix"
 import { prisma } from "~/db.server"
+import type { FullPerson } from "../utils/people_utils"
+import { savePeople, transformPeople } from "../utils/people_utils"
 
-class FullPerson {
-    constructor(
-        public id: string,
-        public name: string,
-        public selected: boolean,
-        public current_title: string,
-        public normalized_title: string,
-        public linkedin_url: string,
-        public email: string
-    ) {}
-}
-
-const perPage = 10
-
-export async function action({ request, params }: LoaderArgs) {
-    const { id } = zx.parseParams(params, { id: z.string() })
-
-    // Get the JSON passed in
-    const companyPeople = JSON.parse(await request.text())
-
-    // update the companyPerson data
-    for await (const companyPerson of companyPeople) {
-        await prisma.companyPerson.update({
-            where: { id: companyPerson.id },
-            data: {
-                email: companyPerson.email,
-                selected: companyPerson.selected,
-            },
-        })
-    }
-
-    return null
-}
+const peoplePerPage = 3
+const companiesPerPage = 1
 
 export async function loader({ params }: LoaderArgs) {
-    const { id, pageNum } = zx.parseParams(params, {
-        id: z.string(),
-        pageNum: zx.NumAsString.optional(),
-    })
+    const { sessionId, companyPageNum, personPageNum } = zx.parseParams(
+        params,
+        {
+            sessionId: z.string(),
+            companyPageNum: zx.NumAsString.optional(),
+            personPageNum: zx.NumAsString.optional(),
+        }
+    )
 
     const session = await prisma.session.findFirst({
-        where: { id: id },
+        where: { id: sessionId },
     })
 
     if (!session) {
         throw new Error("Session not found")
     }
 
+    console.log("session: ", session, " find: ", session.id)
+
     // Fetch the first company
-    const company = await prisma.sessionCompany.findFirst({
+    const companies = await prisma.sessionCompany.findMany({
         where: { sessionId: session.id },
         include: {
             company: true,
         },
+        skip: companyPageNum ? companyPageNum : 0,
     })
 
-    if (!company) {
+    if (!companies || companies.length === 0) {
         throw new Error("Company not found")
     }
+
+    const totalCompanies = await prisma.sessionCompany.count({
+        where: { sessionId: session.id },
+    })
+
+    const company = companies[0]
 
     // Get the CompanyPerson for the company that match this session
     const people = await prisma.companyPerson.findMany({
@@ -83,9 +68,9 @@ export async function loader({ params }: LoaderArgs) {
         },
         include: { person: true },
         // limit/offset by pageNum and perPage
-        take: perPage,
-        skip: pageNum ? (pageNum - 1) * perPage : 0,
-        orderBy: { id: "desc" },
+        take: peoplePerPage,
+        skip: personPageNum ? personPageNum * peoplePerPage : 0,
+        orderBy: { createdAt: "asc" },
     })
 
     const totalPeople = await prisma.companyPerson.count({
@@ -95,44 +80,11 @@ export async function loader({ params }: LoaderArgs) {
         },
     })
 
-    return { session, company, people, totalPeople }
-}
-
-function savePeople(
-    session: Session,
-    peopleRecords: FullPerson[],
-    selectedPeople: FullPerson[]
-) {
-    // write in the selected state to peopleRecords by looking if it is included in selectedPeople
-    const updatedPeopleRecords = peopleRecords.map((person) => {
-        return {
-            ...person,
-            // selected if the person object is included in the selectedPeople array
-            selected: selectedPeople.map((e) => e.id).includes(person.id),
-        }
-    })
-
-    // from updatedPeopleRecords, just extract selected state and email value
-    const selectedAndEmail = updatedPeopleRecords.map((person) => {
-        return {
-            id: person.id,
-            selected: person.selected,
-            email: person.email,
-        }
-    })
-
-    // Save the data to the remix action
-    fetch(`/sessions/${session.id}/0`, {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-        },
-        body: JSON.stringify(selectedAndEmail),
-    })
+    return { session, company, totalCompanies, people, totalPeople }
 }
 
 export default function SessionIndex() {
-    const { session, company, people, totalPeople } =
+    const { session, company, totalCompanies, people, totalPeople } =
         useLoaderData<typeof loader>()
 
     const [selectedPeople, setSelectedPeople] = useState<FullPerson[]>([])
@@ -142,11 +94,50 @@ export default function SessionIndex() {
     const params = useParams()
     const navigate = useNavigate()
 
-    const activePage = params.pageNum ? parseInt(params.pageNum) : 1
+    const activePersonPage = params.personPageNum
+        ? parseInt(params.personPageNum)
+        : 0
+    const activeCompanyPage = params.companyPageNum
+        ? parseInt(params.companyPageNum)
+        : 0
 
-    function setPage(activePage: number) {
-        // Update the route to the new page number
-        navigate(`/sessions/${session.id}/${activePage}`)
+    function setPage({
+        newPersonPageNum = activePersonPage,
+        newCompanyPageNum = activeCompanyPage,
+    }: {
+        newPersonPageNum?: number
+        newCompanyPageNum?: number
+    }) {
+        if (newCompanyPageNum !== activeCompanyPage) {
+            // When changing companies, set the person page to 0
+            newPersonPageNum = 0
+        }
+
+        navigate(
+            `/sessions/${session.id}/company/${newCompanyPageNum}/person/${newPersonPageNum}`
+        )
+    }
+
+    function nextPage() {
+        if (activePersonPage < totalPeople / peoplePerPage - 1) {
+            setPage({ newPersonPageNum: activePersonPage + 1 })
+        } else if (activeCompanyPage < totalCompanies / companiesPerPage - 1) {
+            setPage({
+                newCompanyPageNum: activeCompanyPage + 1,
+                newPersonPageNum: 0,
+            })
+        }
+    }
+
+    function previousPage() {
+        if (activePersonPage > 0) {
+            setPage({ newPersonPageNum: activePersonPage - 1 })
+        } else if (activeCompanyPage > 0) {
+            setPage({
+                newCompanyPageNum: activeCompanyPage - 1,
+                newPersonPageNum: 0,
+            })
+        }
     }
 
     let companyInfo: JSX.Element
@@ -160,33 +151,6 @@ export default function SessionIndex() {
         companyInfo = <div>Company not found</div>
     }
 
-    function transformPeople(people: (CompanyPerson & { person: Person })[]) {
-        let peopleRecords: FullPerson[]
-        if (people) {
-            peopleRecords = people.map((companyPerson) => {
-                const data = companyPerson.person.data
-                if (!data) {
-                    throw new Error(
-                        `Data for companyPerson not found ${companyPerson}`
-                    )
-                }
-
-                return new FullPerson(
-                    companyPerson.id,
-                    companyPerson.person.name,
-                    companyPerson.selected,
-                    data.current_title,
-                    data.normalized_title,
-                    data.linkedin_url,
-                    companyPerson.email || ""
-                )
-            })
-        } else {
-            peopleRecords = []
-        }
-        return peopleRecords
-    }
-
     // When the people updates, update the selectedPeople
     // Note: This is a weird API for the DataTable imho, seems like the selected state should just be a prop
     useEffect(() => {
@@ -198,6 +162,28 @@ export default function SessionIndex() {
         )
         setSelectedPeople(curSelectedPeople)
     }, [people])
+
+    // Hotkey listener for CMD + ENTER
+    useEffect(() => {
+        const handleKeyDown = (e) => {
+            // Check for CMD (or CTRL) + ENTER key press
+            if ((e.metaKey || e.ctrlKey) && e.keyCode === 13) {
+                if (e.shiftKey) {
+                    savePeople(session, allPeople, selectedPeople, previousPage)
+                } else {
+                    savePeople(session, allPeople, selectedPeople, nextPage)
+                }
+            }
+        }
+
+        // Add the event listener to the `document`
+        document.addEventListener("keydown", handleKeyDown)
+
+        // Cleanup the event listener on component unmount
+        return () => {
+            document.removeEventListener("keydown", handleKeyDown)
+        }
+    }, [allPeople, selectedPeople]) // Empty dependency array ensures the effect runs once after the component mounts
 
     const mainEmailRef = useRef<HTMLFormElement>(null)
 
@@ -236,6 +222,12 @@ export default function SessionIndex() {
                     : person
             )
         )
+    }
+
+    async function createDrafts(session: Session) {
+        await fetch(`/send_email/${session.id}`, {
+            method: "POST",
+        })
     }
 
     return (
@@ -309,20 +301,66 @@ export default function SessionIndex() {
                     onSelectedRecordsChange={setSelectedPeople}
                     records={allPeople}
                 />
-                <Button
-                    onClick={(e) =>
-                        savePeople(session, allPeople, selectedPeople)
-                    }
-                >
-                    Save
-                </Button>
+                <Group sx={{ padding: 10 }}>
+                    <Button
+                        onClick={(e) =>
+                            savePeople(
+                                session,
+                                allPeople,
+                                selectedPeople,
+                                previousPage
+                            )
+                        }
+                    >
+                        Previous (CMD + SHIFT + ENTER)
+                    </Button>
+                    <Button
+                        onClick={(e) =>
+                            savePeople(
+                                session,
+                                allPeople,
+                                selectedPeople,
+                                nextPage
+                            )
+                        }
+                    >
+                        Next (CMD + ENTER)
+                    </Button>
+                </Group>
 
                 <Space h="lg" />
-                <Pagination
-                    value={activePage}
-                    onChange={setPage}
-                    total={totalPeople / perPage}
-                />
+                <Grid justify="space-between">
+                    <Grid justify="center">
+                        <p>People: &nbsp;</p>
+                        <Pagination
+                            position="center"
+                            value={activePersonPage + 1}
+                            onChange={(pageNum) =>
+                                setPage({ newPersonPageNum: pageNum - 1 })
+                            }
+                            total={Math.ceil(totalPeople / peoplePerPage)}
+                        />
+                    </Grid>
+
+                    <Grid justify="center">
+                        <p>Companies: &nbsp;</p>
+                        <Pagination
+                            value={activeCompanyPage + 1}
+                            onChange={(pageNum) => {
+                                setPage({ newCompanyPageNum: pageNum - 1 })
+                            }}
+                            total={Math.ceil(totalCompanies / companiesPerPage)}
+                        />
+                    </Grid>
+
+                    <Button
+                        onClick={() => {
+                            createDrafts(session)
+                        }}
+                    >
+                        Finished, Create Drafts
+                    </Button>
+                </Grid>
             </form>
         </div>
     )

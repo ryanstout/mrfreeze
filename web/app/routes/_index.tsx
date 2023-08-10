@@ -20,7 +20,7 @@ export default function Index() {
 
                 {sessions.map((session) => (
                     <div key={session.id}>
-                        <Link to={`/sessions/${session.id}/0`}>
+                        <Link to={`/sessions/${session.id}`}>
                             {session.name}
                         </Link>
                     </div>
