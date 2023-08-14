@@ -79,6 +79,7 @@ def rocketreach_title_search_rank(
     job_query: str, limit: int = 100, map_limit: int = 100
 ) -> list[str]:
     with get_openai_callback() as cb:
+        print("Rank rocketreach normalized job titles [NOTE: this will take a while]")
         # Pull in the list of normalized titles from the provided url
         url = "https://static.rocketreach.co/job-titles/normalized_titles_display_names.txt"
         titles = requests.get(url).text
@@ -106,10 +107,10 @@ def rocketreach_title_search_rank(
 
         map_prompt = HumanMessagePromptTemplate.from_template(
             # "Rank the following job titles based on how likely the job described would be to be in charge of {job_query}. Return the top {map_limit} results separated by new lines, do not include numbers.\n\n```{titles}```"
-            "Given the following list of job titles, assign each job title a score from 0 to 100 based on how likely the job would be to be in charge of {job_query}. Only return jobs with a score of over 95.\n\n```{titles}```"
+            "Given the following list of job titles, assign each job title a score from 0 to 100 based on {job_query}. Only return jobs with a score of over 95.\n\n```{titles}```"
         )
         reduce_prompt = HumanMessagePromptTemplate.from_template(
-            "Rank the following job titles based on how likely the job described would be to be in charge of {job_query}. Return the top {limit} results separated by new lines, do not include numbers.\n\n```{titles}```"
+            "Rank the following job titles based on {job_query}. Return the top {limit} results separated by new lines, do not include numbers.\n\n```{titles}```"
         )
 
         map_prompt = ChatPromptTemplate.from_messages([map_prompt])
@@ -159,13 +160,14 @@ def rocketreach_title_search_rank(
         )
 
         title_documents = text_splitter.create_documents(texts=[titles])
+        i = 0
 
+        results: list[str] = []
         if not use_langchain or disable_parallel:
             import openai
 
             openai.api_key = os.getenv("OPENAI_API_KEY")
 
-            results = []
             for title_document in title_documents:
                 prompt = map_prompt.format(
                     job_query=job_query,
@@ -173,7 +175,6 @@ def rocketreach_title_search_rank(
                     # map_limit=map_limit,
                 )
 
-                print("Run prompt")
                 t1 = time.time()
                 map_results = openai.ChatCompletion.create(
                     model="gpt-4", messages=[{"role": "user", "content": prompt}]
@@ -199,7 +200,12 @@ def rocketreach_title_search_rank(
                     [line for line in result.split("\n") if line.strip()]
                 )
 
-                print("RESULT IN: ", t2 - t1, len(result.split("\n")))
+                num_sorted = len(result.split("\n"))
+
+                print(
+                    f"> sorting job titles step {i} completed in {t2 - t1} seconds, matched on {num_sorted} titles"
+                )
+                i += 1
                 results.append(result)
 
                 # print("NOW WITH LANGCHAIN")
@@ -217,27 +223,23 @@ def rocketreach_title_search_rank(
             #     job_query=job_query, titles="\n".join(results), limit=limit
             # )
 
-            print(f"----------------\n{results}\n\n")
+            # print(f"----------------\n{results}\n\n")
             prompt = reduce_prompt.format(
                 job_query=job_query, titles="\n".join(results), limit=limit
             )
 
-            print(
-                "Final Prompt",
-                prompt,
-                "\n\nPrompt Length: ",
-                len(prompt),
-                "Prompt Lines: ",
-                len(prompt.split("\n")),
-            )
+            # print(
+            #     "Final Prompt",
+            #     prompt,
+            #     "\n\nPrompt Length: ",
+            #     len(prompt),
+            #     "Prompt Lines: ",
+            #     len(prompt.split("\n")),
+            # )
             results = openai.ChatCompletion.create(
                 model="gpt-4", messages=[{"role": "user", "content": prompt}]
             )
             results = results.choices[0].message.content
-            print("FINAL RESULTS: ", results)
-            import code
-
-            code.interact(local=locals())
 
         # results = combine_documents.run(
         #     input_documents=title_documents,
@@ -265,10 +267,12 @@ def rocketreach_title_search_rank(
             print(
                 f"Removed {len(removed_titles)} titles that were not in the original list of titles: {removed_titles}"
             )
-            print(removed_titles)
+            print(f"[Warning: the following titles did not match {removed_titles}")
 
         if len(results) == 0:
             raise Exception("No job titles were returned")
+        else:
+            print("Final job title ranking ", results)
 
         return results
 

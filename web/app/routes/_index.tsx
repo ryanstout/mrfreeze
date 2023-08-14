@@ -16,7 +16,7 @@ export default function Index() {
     return (
         <main>
             <div>
-                <h1>Index</h1>
+                <h1>Sessions</h1>
 
                 {sessions.map((session) => (
                     <div key={session.id}>

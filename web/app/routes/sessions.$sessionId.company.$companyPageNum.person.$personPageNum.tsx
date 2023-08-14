@@ -18,7 +18,7 @@ import { prisma } from "~/db.server"
 import type { FullPerson } from "../utils/people_utils"
 import { savePeople, transformPeople } from "../utils/people_utils"
 
-const peoplePerPage = 3
+const peoplePerPage = 20
 const companiesPerPage = 1
 
 export async function loader({ params }: LoaderArgs) {

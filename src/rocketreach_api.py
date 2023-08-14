@@ -15,7 +15,8 @@ from langchain.schema import AIMessage, HumanMessage, SystemMessage
 
 def person_lookup(person_id: int):
     """
-    Search for companies on RocketReach by different parameters:
+    Starts a lookup to retrieve contact information for a prospect(profile). You can identify the profile using
+    parameters like name, current employer, LinkedIn URL, or profile id (returned from search):
     https://rocketreach.co/api/docs/#operation/person_lookup_read
     """
     url = "https://api.rocketreach.co/api/v2/person/lookup"

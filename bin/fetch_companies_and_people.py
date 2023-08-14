@@ -9,6 +9,28 @@ from src.rocketreach_title_search_ranker import rocketreach_title_search_rank
 db_connection = db.application_database_connection()
 
 
+session_id = sys.argv[1]
+keyword = sys.argv[2]
+job_description = sys.argv[3]
+max_companies = int(sys.argv[4])
+max_people_per_company = int(sys.argv[5])
+
+
+print(
+    "************************************\nStarting creation of new session on session id: ",
+    session_id,
+    "\n> search for companies matching: ",
+    keyword,
+    "\n> for jobs that: ",
+    job_description,
+    "\n> max companies: ",
+    max_companies,
+    "\n> max people per company: ",
+    max_people_per_company,
+    "\n************************************",
+)
+
+
 def find_or_create_company(company):
     company_id = company["id"]
     # Find the company in the database by rocketreachId
@@ -98,14 +120,6 @@ def create_company_person(company_id, person_id, session_id):
         )
 
 
-session_id = sys.argv[1]
-keyword = sys.argv[2]
-job_description = sys.argv[3]
-
-max_searches = 1
-max_companies = 2
-max_people_per_company = 2
-
 job_titles = rocketreach_title_search_rank(job_description)  # , limit=50)
 print("Finding people with the following job titles: ", job_titles)
 
@@ -129,7 +143,6 @@ for company in compaines["companies"]:
     company_count += 1
 
     company_id = company["id"]
-    print("CompanyId: ", company_id)
     company_record = find_or_create_company(company)
     create_session_company(company_record.id, session_id)
 
